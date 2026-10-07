@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A letter for you</title>
+<style>
+:root{--ink:#161320;--wax:#8c1d2f;--waxhi:#b32a40;--paper:#f4ecdc;--text:#2b2230;--gold:#d9b66f}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:radial-gradient(circle at 50% 30%,#2a1f3a,var(--ink) 70%);color:var(--paper);font-family:Georgia,"Palatino Linotype",serif;display:flex;justify-content:center;padding:32px 16px;min-height:100vh}
+main{width:100%;max-width:560px;text-align:center}
+h1{font-weight:400;font-size:1.5rem;letter-spacing:.02em;margin:8px 0 28px}
+.envelope{position:relative;width:100%;aspect-ratio:3/2;background:#e6d8bd;border-radius:6px;box-shadow:0 20px 50px #0008;cursor:pointer;margin:0 auto 24px;transition:transform .4s}
+.envelope:hover{transform:translateY(-3px)}
+.envelope::before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom right,transparent 49.5%,#cdbb99 50%) left/50% 100% no-repeat,linear-gradient(to bottom left,transparent 49.5%,#d6c5a3 50%) right/50% 100% no-repeat;border-radius:6px}
+.flap{position:absolute;left:0;right:0;top:0;height:58%;background:#d8c8a6;clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top;transition:transform .8s ease}
+.envelope.open .flap{transform:rotateX(180deg);background:#cbb994}
+.seal{position:absolute;left:50%;top:58%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--waxhi),var(--wax));box-shadow:0 4px 10px #0006;display:grid;place-items:center;font-size:1.6rem;color:#e9b7bf;transition:opacity .4s,transform .4s}
+.envelope.open .seal{opacity:0;transform:scale(.4)}
+.hint{opacity:.7;font-size:.95rem;font-style:italic}
+.card{background:var(--paper);color:var(--text);border-radius:8px;padding:28px 24px;box-shadow:0 20px 50px #0008;text-align:left}
+.card p.q{font-size:1.25rem;line-height:1.5;margin:0 0 18px}
+.row{display:flex;gap:10px}
+input{flex:1;font:inherit;padding:12px 14px;border:1.5px solid #b9a98a;border-radius:6px;background:#fffaf0;color:var(--text);min-width:0}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button{font:inherit;padding:12px 20px;border:0;border-radius:6px;background:var(--wax);color:#fff;cursor:pointer}
+button:hover{background:var(--waxhi)}
+.opts{display:grid;gap:10px}
+.opt{width:100%;text-align:left;background:#fffaf0;color:var(--text);border:1.5px solid #b9a98a;padding:14px 16px;font-size:1.05rem}
+.opt:hover{background:#f3e6cc}
+.opt.bad{background:#f1d4d8;border-color:var(--wax);color:var(--wax);cursor:not-allowed}
+.opt.good{background:#d9ecd4;border-color:#3f7a3a;color:#25521f}
+.msg{min-height:1.4em;margin:12px 0 0;font-size:.95rem;color:var(--wax)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.words{display:flex;justify-content:center;gap:.5em;flex-wrap:wrap;font-size:2.6rem;margin:0 0 26px;min-height:1.3em}
+.words span{color:var(--gold);animation:pop .7s ease both}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
+.letter{background:var(--paper);color:var(--text);padding:36px 28px;border-radius:4px;text-align:left;line-height:1.8;font-size:1.1rem;box-shadow:0 20px 50px #0008;animation:rise 1.2s ease both}
+.letter p{margin:0 0 1.1em;overflow-wrap:anywhere}
+.letter .to{font-size:1.3rem}
+.letter .from{margin-top:2em;font-style:italic}
+@keyframes rise{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">A letter is waiting for you</h1>
+  <div class="words" id="words" aria-live="polite"></div>
+
+  <div id="envWrap">
+    <div class="envelope" id="env" role="button" tabindex="0" aria-label="Locked envelope">
+      <div class="flap"></div><div class="seal">&#9825;</div>
+    </div>
+    <p class="hint" id="hint">This letter is locked. Answer 3 questions to open it.</p>
+    <button id="begin">Begin</button>
+  </div>
+
+  <section class="card" id="card" hidden>
+    <p class="q" id="q"></p>
+    <div class="opts" id="opts"></div>
+    <p class="msg" id="msg"></p>
+  </section>
+
+  <article class="letter" id="letter" hidden></article>
+</main>
+
+<script>
+/* ================= EDIT THIS PART ================= */
+
+const HER_NAME = "";                   // leave empty to skip the "Dear ..." line
+const YOUR_NAME = "Janle";         // signature at the bottom
+
+// 3 multiple-choice questions.
+// "correct" is the right answer, "others" are the wrong choices.
+// The order of the choices is shuffled every time.
+const QUESTIONS = [
+  { q: "Where did we first meet?",
+    correct: "Hotel Hideaway (HH)",
+    others: ["At school", "Through a friend", "At a coffee shop"],
+    wrong: "Not quite. Think back to the very first day..." },
+  { q: "When is my birthday?",
+    correct: "September 10",
+    others: ["September 1", "October 10", "August 10"],
+    wrong: "Hmm, that's not it. Try another one." },
+  { q: "How many ways can I show that I love you?",
+    correct: "A thousand",
+    others: ["Just one", "A hundred", "Ten"],
+    wrong: "Close, but there are far more than that." }
+];
+
+// The words each correct answer reveals. Keep these in order: I, Love, You.
+const WORDS = ["I", "Love", "You"];
+
+// Your letter. One string per paragraph. Make it as long as you want.
+const LETTER = [
+  "HI ASAWAAA SSUUUUUUUURPRIIIISE HAHAHAHA I MADE THIS FOR YOU ASAWA CAUSE WHY NOT DBA? why should i stop hindi pa nga ko umabot ng 100 ways to show you how much i love you asawa dbaaa ngaaaa line koo is i will love you in a thousand ways and i will show it to you asawaaa",
+  "i know theres a lot of happenings sa Iyo ur just keeping to yourself i can sense and sana magka ease kana heheh iloveyoupo asawa dont overthink na and wagka mag alala asawa di mo naman ako nasasaktan napapaselos moko oo aminin ko yung its really hurt hehehe pag kasama mo ibang guy  anyways again di mo naman ako nasasaktan asawa and dont worry if nagawa mo yung di mo sadya cause of anxiety or overthinking stress masama sa baby natin yun kaya kalma asawa cause im yours and asawa iloveyou",
+  "Kahit gaganyan ka its not toxic asawa its normal cause you are my WIFE asawa dba nag propose na ako heheh FIANCE pala tama ba spelling anyways asawa im yours truly with pure love no lie ill do everything for us to be together ill handle every mood every challenges every heartache na eh bibigay  sakin basta ang ma bigay lang sayo is gentle love caring kind and warm hugs ill absorb every negative to make you positive asawa ksi ikaw lang nag mamatter sakin",
+  "and dont worry about asawa like i said ill handle it dba ill take care of it asawa strust me lang ha i know and kinda worrying sometimes but dont worry matatag ako im not weak im strong for you asawa and asawa iloveyousoomuch ang comfortable ko na sayo lagi nohhhh ikaw din ksi inaantok ka kulang nalang we sleep together na asawa pero dont worry i know aabot din yung panahon asawa na eexcite ako everyday asawa like YEEES ANOTHER WAY TO LOVE MY WIIIFEEEEE hys this letter is brought you by janle at totoong nararamdaman nya sayo.",
+  "anyways asawa im sorry if may pagkukulang ako sayo asawa sana hayaan moko bumawi sayo asawako AHHHHH i love it the word asawa ko hys specially pag tinatawag mokong ASAWA KO AHHHHHH it melts my heart sorry if u=im a bit childish or weird pag dating sayo asawa im so comfortable sayo like super likeeee u my wife na talaga asawa i love you soo much again and again i love everything about you subraaaaa ahh naalala ko pa mga ginawa ko sayo yung mga link yung greatings s abday yunga mga letter yung ginawa sa room flower propose asking you to be mine and you saying yes AHHHH asawa ILOVEYOUSOOMUCH pinapalabas mo loverboy ko pinapalabas mo asawa like its cute and i want to take care of you my wife hyyyyysss",
+  "and daming words to say i love you in a thousand ways siguro yung poem na reminder of love is part of the thousand right asawa? di talga ako ma uubusan ng pagmamahal baka sabihin mong sa simula lang naaaahhh asawa its my job to prove it to you i made a promise dba and i made that promise when down tayo to eachother and i needed you akala ko nga di kana babalik nun buti nag chat ka sa isang acc mo panay beg pako nun hehhe dun na nag simula na i would do everything for this lady cause shes worth it asawa i love you in a thousand way that i will remind you every day until you will feel comfort love cared and warm until you will relax cause knowing that im here with an open arms no matter what even if you push or push away id still be here by your side asking you that you want a hug? and telling you na \" hey asawa im here and i will always love you okay?\" no matter the struggles asaw ano matter the fight ksi di ko naman sasabayan galit mo eh i would drop my pride and understand you more and observe and realizing i can love her that way cause why should i find a reason to win an arguement when all i need is to find a way to show her iloveyousoomuch dba asawa? ill do everything and handle everything asawa sana di ka maapgod and mag sawa sakin asawa ksi ako i would never mag sawa sayo ksi like i said i have many reason to love you and to be interested sayo asawa ko and thats worth the risk asawa i love hoe you wait for me i love how you make fun of me i love your laugh asawa love kita Kahit galit ka or malungkot asawa never ako mag sasawa basta i love you the very you walang pangapan walang halong biro i will win every trust sayo asawa Kahit aabutin ng matagal ksi all i want to do is to prove my love for you and ill pray for the better future and love for us asawa for us to be together",
+  "hahaha idk if mahaba nab ato pero feeling ko kulang pa walang ai or chatgpt to ha galling tto sakin asawa everytime mag call tayo tas huhug ko unan i felt your warm its so comfy aswa like inaantok ako while feel ko hinuhug kita i love it asawa ko hehehehe anyways asawa i would never get tired of making you stuff like this or sending you some surprises asawa Kahit ano sabihin mo or Kahit anong pag subok yan mahal na mahal kita misses ko and may tiwala talaga ako sayo asawa nag seselos lang talga ako pag kalaro mo guy or kasama asawa hehe sana ma intindhan mo asawa and wag kana mag overthink sakin naka focus lang ako sa school and free time sayo side quest nalang yung may gala or kakain sa labas asawaa sorry talaga i pray and wish to be there totake care of you asawa ko pero for now asawa i pray for us to be together until dalawa na tayo naka tayo sa altar and receiving blessing kay papa G alam ko madami pa tayong pag subok dadaanan asawa let me handle that okay?",
+  "asawa iloveyousoomuch gawin ko lahat at hinding hindi ktia susukan asawa ko if ever d ko kaya lahat sabihan kita at patulong ako sayo ksi asawa ikaw at ikaw lang ang tatakbuhan ko pag mabigat na ang mundo kung dalawaman tayong nabibigatan sa mundo asawa handa akong kargahin ka at harapan ang mundo para sayo asawa ko maipakita ko sayo kung gaano kita ka mahal asawa exicted nako bukas or the next day knowing that i have you as my ASAWA KO hehehhehe ang angas talaga pakingan specially pag tawagin mokong asawa ko hehhe ILOVEYOUVERYMUCH ASAWAKO  asawa adi pako tapos dami ko pa masabi asaawa hehehhehe wag kana mag bago asawa ha be yourself lang talga ksi mamahalin kita ng buong buo asawaaa and asawa wag ka mag padala sinasabi ng iba satin relationship naman to eh wag ka pa tental sa iba asawa haaa akin kalang sayong sayo lang ako asawa sana di ka magalit ksi ginawa koto dont worry asawa na handle ko naman mga activities ko sabi ko sayo eh motivated ako gumalaw ksi naka abang asawa ko missis ko the love of my life thankyou GOD....",
+  "Dear Lord,",
+  "I come to You today to ask for help with my relationship. Please take away any pain, hurt, or misunderstanding in our hearts.",
+  "Fill us with Your love, patience, and deep understanding. Help us to be kind to each other and to listen with open hearts. Give us the strength to face our challenges together and never give up.",
+  "If things are complicated, please make them clear and simple. Help us to forgive past mistakes and to see each other's true worth. Guide our steps, keep us humble, and let Your peace rule in our bond.",
+  "Thank You for hearing my prayer.",
+  "In Jesus' name, Amen.",
+  "ASAWAAA ito ito na dabi ko pa gusto eh sayyyyyy pero can i act on it nalang? like idk what word ima use to use that ILOVEYOUVERYMUCH so i ask you this Ella Marquez Garcia may i ask you to mary me? 💍 heheh may i ask you to be mine? and may i ask your permission to show my love to you everyday missis ko? cause no words will cover the act that im gonna show you an act of a thousand ways to love you my wife soo miss Ell Marquez Garcia ill tell you again and again that i love you my wife soo asawa a Reminder of love that I LOVE YOU AND A THOUSAND WAYS TO SHOW YOU AND IF THAT THOUSANDS COME ILL FIND ANOTHER THOUSANDS REASON TO LOVE YOU ASAWA KO <3"
+];
+
+/* ================ END OF EDITING ================== */
+
+const $ = id => document.getElementById(id);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let step = -1;
+let unlocked = false;
+
+function begin() {
+  $("envWrap").hidden = true;
+  $("title").textContent = "Three questions";
+  step = 0;
+  showQuestion();
+}
+
+function showQuestion() {
+  const Q = QUESTIONS[step];
+  $("card").hidden = false;
+  $("q").textContent = Q.q;
+  $("msg").textContent = "";
+  const box = $("opts");
+  box.innerHTML = "";
+  shuffle([Q.correct, ...Q.others]).forEach(text => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "opt";
+    b.textContent = text;
+    b.addEventListener("click", () => choose(b, text));
+    box.appendChild(b);
+  });
+  box.firstChild.focus();
+}
+
+function choose(btn, text) {
+  if (btn.classList.contains("bad") || $("opts").dataset.done) return;
+  if (text !== QUESTIONS[step].correct) {
+    btn.classList.add("bad");
+    $("msg").textContent = QUESTIONS[step].wrong || "Not quite. Try another one.";
+    $("card").classList.remove("shake"); void $("card").offsetWidth; $("card").classList.add("shake");
+    return;
+  }
+  $("opts").dataset.done = "1";
+  btn.classList.add("good");
+  $("msg").textContent = "";
+  const w = document.createElement("span");
+  w.textContent = WORDS[step];
+  $("words").appendChild(w);
+  step++;
+  setTimeout(() => {
+    $("card").hidden = true;
+    delete $("opts").dataset.done;
+    step >= QUESTIONS.length ? backToEnvelope() : showQuestion();
+  }, 900);
+}
+
+function backToEnvelope() {
+  unlocked = true;
+  $("title").textContent = "It's unlocked";
+  $("hint").textContent = "Now you can open it. Tap the seal.";
+  $("begin").hidden = true;
+  $("env").setAttribute("aria-label", "Open the envelope");
+  $("envWrap").hidden = false;
+  $("env").focus();
+}
+
+function openEnvelope() {
+  if (!unlocked) return;
+  unlocked = false;
+  $("env").classList.add("open");
+  $("hint").hidden = true;
+  setTimeout(() => { $("envWrap").hidden = true; showLetter(); }, 1000);
+}
+
+function showLetter() {
+  $("title").textContent = "For you";
+  const L = $("letter");
+  L.innerHTML = "";
+  if (HER_NAME) { const to = document.createElement("p"); to.className = "to"; to.textContent = "Dear " + HER_NAME + ","; L.appendChild(to); }
+  LETTER.forEach(t => { const p = document.createElement("p"); p.textContent = t; L.appendChild(p); });
+  const f = document.createElement("p"); f.className = "from"; f.textContent = "Forever yours, " + YOUR_NAME;
+  L.appendChild(f);
+  L.hidden = false;
+  setTimeout(() => L.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+}
+
+$("begin").addEventListener("click", begin);
+$("env").addEventListener("click", openEnvelope);
+$("env").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openEnvelope(); } });
+</script>
+</body>
+</html>
